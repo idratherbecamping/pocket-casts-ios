@@ -10,16 +10,23 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
         }
     }
 
+    #if APPCLIP
+    @IBOutlet var upNextBtn: UIButton!
+    #else
     @IBOutlet var upNextBtn: UpNextButton! {
         didSet {
             upNextBtn.themeOverride = .dark
             upNextBtn.iconColor = AppTheme.colorForStyle(.playerContrast01)
         }
     }
+    #endif
 
     @IBOutlet var mainScrollView: RegionCancellingScrollView! {
         didSet {
+            // We don't need to handle the scroll view because it is not dismissable in App Clip
+            #if !APPCLIP
             mainScrollView.delegate = self
+            #endif
         }
     }
 
@@ -35,6 +42,7 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
         return item
     }()
 
+    #if !APPCLIP
     lazy var showNotesItem: ShowNotesPlayerItemViewController = {
         let item = ShowNotesPlayerItemViewController()
         item.scrollViewHandler = self
@@ -75,6 +83,7 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
     }()
 
     private lazy var upNextViewController = UpNextViewController(source: .player)
+    #endif
 
     @IBOutlet var closeBtn: ThemeableUIButton! {
         didSet {
@@ -107,7 +116,9 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
         NotificationCenter.default.addObserver(self, selector: #selector(handleAppWillBecomeActive), name: UIApplication.willEnterForegroundNotification, object: nil)
 
         // To avoid weird animations when apearing, we add the transcript view here
+        #if !APPCLIP
         configureTranscriptView()
+        #endif
     }
 
 
@@ -122,9 +133,11 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
 
+        #if !APPCLIP
         if nowPlayingItem.displayTranscript {
             transcriptsItem.didDisappear()
         }
+        #endif
 
         if !FeatureFlag.newPlayerTransition.enabled {
             Analytics.track(.playerDismissed)
@@ -143,12 +156,20 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
     }
 
     @IBAction func closeTapped(_ sender: Any) {
+        #if APPCLIP
+        //TODO: Show install banner
+        #else
         appDelegate()?.miniPlayer()?.closeFullScreenPlayer()
+        #endif
     }
 
     @objc private func showUpNext() {
+        #if APPCLIP
+        //TODO: Show install banner
+        #else
         let navController = SJUIUtils.navController(for: upNextViewController, iconStyle: .secondaryText01, themeOverride: upNextViewController.themeOverride)
         present(navController, animated: true, completion: nil)
+        #endif
     }
 
     // MARK: - Orientation
@@ -165,7 +186,9 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
             return
         }
 
+        #if !APPCLIP
         chaptersItem.scrollToCurrentlyPlayingChapter(animated: false)
+        #endif
     }
 
     func scrollToNowPlaying() {
@@ -180,7 +203,12 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
         guard let podcast = PlaybackManager.shared.currentPodcast else {
             return
         }
+
+        #if APPCLIP
+        //TODO: Show install banner
+        #else
         NavigationManager.sharedManager.navigateTo(NavigationManager.podcastPageKey, data: [NavigationManager.podcastKey: podcast])
+        #endif
     }
 
     func dismissTranscript() {
@@ -202,18 +230,22 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
     }
 
     private func setupGestures() {
+        #if !APPCLIP
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(panGestureRecognizerHandler(_:)))
         panGesture.cancelsTouchesInView = false
         view.addGestureRecognizer(panGesture)
+        #endif
     }
 
     @objc private func themeDidChange() {
         updateColors()
         tabsView.themeDidChange()
         nowPlayingItem.themeDidChange()
+        #if !APPCLIP
         chaptersItem.themeDidChange()
         showNotesItem.themeDidChange()
         transcriptsItem.themeDidChange()
+        #endif
     }
 
     @objc private func playbackFinished() {
@@ -223,7 +255,11 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
     }
 
     func closeNowPlaying() {
+        #if APPCLIP
+        //TODO: Show install banner
+        #else
         appDelegate()?.miniPlayer()?.closeFullScreenPlayer()
+        #endif
     }
 
     private func setupPlayer() {
@@ -285,6 +321,7 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
 
     // MARK: - Transcripts
 
+    #if !APPCLIP
     func showTranscript() {
         addChild(transcriptsItem)
         transcriptContainerView.addSubview(transcriptsItem.view)
@@ -309,6 +346,7 @@ class PlayerContainerViewController: SimpleNotificationsViewController, PlayerTa
         transcriptContainerView.addSubview(transcriptsItem.view)
         transcriptsItem.view.anchorToAllSidesOf(view: transcriptContainerView)
     }
+    #endif
 }
 
 private extension PlayerContainerViewController {
