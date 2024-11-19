@@ -140,6 +140,15 @@ public enum FeatureFlag: String, CaseIterable {
     /// Replace Subscribe/Unsubscribe with Follow/Unfollow
     case useFollowNaming
 
+    /// Use a cookie to manage `MTAudioProcessingTap` deallocation
+    case useDefaultPlayerTapCookie
+
+    /// Use single update query to mark all episodes selected synced
+    case markAllSyncedInSingleStatement
+
+    /// Show Manage Downloaded episode banner/modal when running in low space in the device
+    case manageDownloadedEpisodes
+
     public var enabled: Bool {
         if let overriddenValue = FeatureFlagOverrideStore().overriddenValue(for: self) {
             return overriddenValue
@@ -234,6 +243,12 @@ public enum FeatureFlag: String, CaseIterable {
             true
         case .useFollowNaming:
             true
+        case .useDefaultPlayerTapCookie:
+            true
+        case .markAllSyncedInSingleStatement:
+            true
+        case .manageDownloadedEpisodes:
+            false
         }
     }
 
