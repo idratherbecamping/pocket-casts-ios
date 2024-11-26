@@ -8499,9 +8499,9 @@
 				BD5231EA1E3EDA6A000F0D38 /* Embed App Extensions */,
 				BDD3018A1EFB9356004A9972 /* Embed Watch Content */,
 				40BF0B3F241F55FE003E3ABD /* Embed Frameworks */,
-				C716FF45296F2BE3006B787D /* Modify Plist */,
-				CD7B4456FFD51509B59727FB /* [CP] Embed Pods Frameworks */,
 				F5D5F79F2CEBE76A001F492D /* Embed App Clips */,
+				CD7B4456FFD51509B59727FB /* [CP] Embed Pods Frameworks */,
+				C716FF45296F2BE3006B787D /* Modify Plist */,
 			);
 			buildRules = (
 			);
