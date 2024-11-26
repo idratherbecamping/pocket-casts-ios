@@ -578,8 +578,8 @@ platform :ios do
   end
 
   desc 'Builds for distribution to App Store Connect'
-  lane :build_app_store_connect do
-    configure_code_signing_app_store
+  lane :build_app_store_connect do |skip_code_sign_setup: false|
+    configure_code_signing_app_store unless skip_code_sign_setup
 
     build_app(
       scheme: SCHEME,
