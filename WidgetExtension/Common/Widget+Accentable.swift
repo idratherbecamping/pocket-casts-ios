@@ -15,27 +15,29 @@ extension View {
 extension Image {
     @ViewBuilder
     func backwardWidgetAccentedRenderingMode(_ isAccentedRenderingMode: Bool = true) -> some View {
-        if #available(iOS 18.0, *) {
-            self.widgetAccentedRenderingMode(isAccentedRenderingMode ? .accented : .fullColor)
-        }
-        else {
-            self
+        if isAccentedRenderingMode {
+            self.renderingMode(.template)
+                .foregroundColor(.accentColor)
+        } else {
+            self.renderingMode(.original)
         }
     }
 
     @ViewBuilder
     func backwardWidgetAccentedDesaturatedRenderingMode() -> some View {
-        if #available(iOS 18.0, *) {
-            self.widgetAccentedRenderingMode(.accentedDesaturated)
-        }
-        else {
-            self
-        }
+        self.renderingMode(.template)
+            .foregroundColor(.accentColor)
+            .saturation(0.5)
     }
 
     @ViewBuilder
     func backwardWidgetFullColorRenderingMode() -> some View {
         backwardWidgetAccentedRenderingMode(false)
+    }
+
+    func accentable() -> some View {
+        self.renderingMode(.template)
+            .foregroundColor(.accentColor)
     }
 }
 

@@ -84,6 +84,66 @@ class DownloadManager: NSObject, FilePathProtocol {
 
     let dataManager: DataManager
 
+    private let exportCompletedLock = NSLock()
+    private var _exportCompleted = false
+    private var exportCompleted: Bool {
+        get {
+            exportCompletedLock.lock()
+            defer { exportCompletedLock.unlock() }
+            return _exportCompleted
+        }
+        set {
+            exportCompletedLock.lock()
+            _exportCompleted = newValue
+            exportCompletedLock.unlock()
+        }
+    }
+
+    private let downloadErrorLock = NSLock()
+    private var _downloadError: Error?
+    private var downloadError: Error? {
+        get {
+            downloadErrorLock.lock()
+            defer { downloadErrorLock.unlock() }
+            return _downloadError
+        }
+        set {
+            downloadErrorLock.lock()
+            _downloadError = newValue
+            downloadErrorLock.unlock()
+        }
+    }
+
+    private let reportedContentTypeLock = NSLock()
+    private var _reportedContentType: String?
+    private var reportedContentType: String? {
+        get {
+            reportedContentTypeLock.lock()
+            defer { reportedContentTypeLock.unlock() }
+            return _reportedContentType
+        }
+        set {
+            reportedContentTypeLock.lock()
+            _reportedContentType = newValue
+            reportedContentTypeLock.unlock()
+        }
+    }
+
+    private let wasDownloadingBeforeLock = NSLock()
+    private var _wasDownloadingBefore = false
+    private var wasDownloadingBefore: Bool {
+        get {
+            wasDownloadingBeforeLock.lock()
+            defer { wasDownloadingBeforeLock.unlock() }
+            return _wasDownloadingBefore
+        }
+        set {
+            wasDownloadingBeforeLock.lock()
+            _wasDownloadingBefore = newValue
+            wasDownloadingBeforeLock.unlock()
+        }
+    }
+
     init(dataManager: DataManager) {
         self.dataManager = dataManager
         super.init()
@@ -277,14 +337,14 @@ class DownloadManager: NSObject, FilePathProtocol {
             newItem = AVPlayerItem(asset: newAsset)
             return newItem
         }
-        var wasDownloadingBefore = false
         if episode.downloading() || episode.queued() {
-            wasDownloadingBefore = true
+            self.wasDownloadingBefore = true
             let previousStatus = episode.autoDownloadStatus
             FileLog.shared.addMessage("DownloadManager stream and download: cancelling existing download for: \(episode.uuid) with status:\(previousStatus)")
             self.removeFromQueue(episodeUuid: episode.uuid, fireNotification: false, userInitiated: false)
             episode.autoDownloadStatus = previousStatus
         } else {
+            self.wasDownloadingBefore = false
             episode.autoDownloadStatus = Settings.downloadUpNextEpisodes() ? AutoDownloadStatus.autoDownloaded.rawValue :  AutoDownloadStatus.playerDownloadedForStreaming.rawValue
         }
 
@@ -302,21 +362,18 @@ class DownloadManager: NSObject, FilePathProtocol {
         let outputURL = URL(fileURLWithPath: tempPathForEpisode(episode), isDirectory: false)
         FileLog.shared.addMessage("DownloadManager stream and download: start downloading \(episode.uuid)")
         let exportPath = outputURL.pathComponents.joined(separator: "/")
-        var exportCompleted = false
-        var downloadError: Error?
-        var reportedContentType: String?
         let originalSizeInBytes = episode.sizeInBytes
         let customLoaderDelegate = MediaExporterResourceLoaderDelegate(saveFilePath: exportPath) { status, contentType, bytesDownloaded, bytesExpected in
-            reportedContentType = contentType
+            self.reportedContentType = contentType
             let size = max(100, max(bytesExpected, originalSizeInBytes))
             switch status {
             case .downloading:
                 self.reportProgress(episodeUUID: downloadTaskUUID, totalBytesWritten: bytesDownloaded, totalBytesExpectedToWrite: size)
             case .failed(let error):
-                downloadError = error
-                exportCompleted = true
+                self.downloadError = error
+                self.exportCompleted = true
             case .completed:
-                exportCompleted = true
+                self.exportCompleted = true
             }
         }
         downloadAndStreamEpisodes[downloadTaskUUID] = customLoaderDelegate
@@ -327,24 +384,24 @@ class DownloadManager: NSObject, FilePathProtocol {
         newAsset.resourceLoader.setDelegate(customLoaderDelegate, queue: .global(qos: .default))
         newItem = AVPlayerItem(asset: newAsset)
         Task {
-            while !exportCompleted {
+            while !self.exportCompleted {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
             downloadingEpisodesCache.removeValue(forKey: downloadTaskUUID)
-            removeEpisodeFromCache(episode)
+            self.removeEpisodeFromCache(episode)
             downloadAndStreamEpisodes.removeValue(forKey: downloadTaskUUID)
             guard let episode = dataManager.findBaseEpisode(uuid: downloadTaskUUID) else {
                 return
             }
-            if downloadError == nil {
+            if self.downloadError == nil {
                 FileLog.shared.addMessage("DownloadManager stream and download: end downloading \(episode.uuid) successfully")
-                processEpisode(episode, downloadedFile: outputURL, reportedContentType: reportedContentType)
+                self.processEpisode(episode, downloadedFile: outputURL, reportedContentType: self.reportedContentType)
             } else {
-                FileLog.shared.addMessage("DownloadManager stream and download: failed downloading \(episode.uuid) -> \(downloadError?.localizedDescription ?? "")")
-                wasDownloadingBefore = episode.downloading()
-                DataManager.sharedManager.saveEpisode(downloadStatus: .notDownloaded, downloadError: downloadError?.localizedDescription, downloadTaskId: nil, episode: episode)
+                FileLog.shared.addMessage("DownloadManager stream and download: failed downloading \(episode.uuid) -> \(self.downloadError?.localizedDescription ?? "")")
+                self.wasDownloadingBefore = episode.downloading()
+                DataManager.sharedManager.saveEpisode(downloadStatus: .notDownloaded, downloadError: self.downloadError?.localizedDescription, downloadTaskId: nil, episode: episode)
                 DataManager.sharedManager.saveEpisode(autoDownloadStatus: .notSpecified, episode: episode)
-                if wasDownloadingBefore {
+                if self.wasDownloadingBefore {
                     DownloadManager.shared.addToQueue(episodeUuid: episode.uuid, autoDownloadStatus: .autoDownloaded)
                 }
                 NotificationCenter.postOnMainThread(notification: Constants.Notifications.episodeDownloadStatusChanged, object: episode.uuid)

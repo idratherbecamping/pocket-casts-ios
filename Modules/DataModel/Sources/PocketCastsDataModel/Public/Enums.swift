@@ -302,7 +302,7 @@ public enum PlayerAction: String, Codable, Equatable {
     case download = "download"
 }
 
-extension Array: @retroactive RawRepresentable where Element: RawRepresentable<String> {
+extension Array: RawRepresentable where Element: RawRepresentable<String> {
     public typealias RawValue = String
 
     public init?(rawValue: String) {
